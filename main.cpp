@@ -14,9 +14,13 @@
 //---------------------------------------------------------------------------
 using namespace std;
 //---------------------------------------------------------------------------
-static unique_ptr<llvm::coverage::CoverageMapping> loadCoverage(const string& objectFile, const string& profileFile) {
+static unique_ptr<llvm::coverage::CoverageMapping> loadCoverage(std::vector<std::string> objectFilesAsStr, const string& profileFile) {
    auto fs = llvm::vfs::getRealFileSystem();;
-   llvm::StringRef objectFiles[1] = {objectFile};
+   std::vector<llvm::StringRef> objectFiles;
+   for(auto& s: objectFilesAsStr){
+      objectFiles.push_back(s);
+   }
+   //llvm::StringRef objectFiles[1] = {objectFile};
    auto res = llvm::coverage::CoverageMapping::load(objectFiles, profileFile, *fs);
    if (!res) {
       cerr << "unable to load profile" << endl;
@@ -610,7 +614,7 @@ int main(int argc, char** argv) {
          args.push_back(argv[index]);
       }
    }
-   if (args.size() != 3) {
+   if (args.size() < 3) {
       cerr << "usage: " << argv[0] << " targetDir executable default.prodata" << endl;
       return 1;
    }
@@ -619,9 +623,17 @@ int main(int argc, char** argv) {
       targetDir += '/';
 
    // Load the coverage
-   auto coverage = loadCoverage(args[1], args[2]);
+   std::vector<std::string> binaryFiles;
+   std::string binaryName="";
+   for(size_t i=1;i+1<args.size();i++){
+      binaryFiles.push_back(args[i]);
+      if(i>1){
+         binaryName+=",";
+      }
+      binaryName+=args[i];
+   }
+   auto coverage = loadCoverage(binaryFiles, args[args.size()-1]);
    auto files = coverage->getUniqueSourceFiles();
-   string binaryName = args[1];
    auto timestamp = getFileTimestamp(args[2]);
 
    // Compute the project root
